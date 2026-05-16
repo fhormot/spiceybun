@@ -9,6 +9,7 @@ class Ngspice:
 
                 self._analysis = []
                 self._plots = []
+                self._plot_all = False
 
                 self._path_netlist = path_netlist
                 self._include(path_netlist)
@@ -29,9 +30,6 @@ class Ngspice:
                 self._netlist.append(str)
 
                 return str
-        
-        def set_output_path(self, path) -> None:
-                self._output_path = path
 
         def _write_netlist(self) -> None:
                 self._add_control()
@@ -44,6 +42,46 @@ class Ngspice:
                         f.write('\n'.join(self._netlist))
 
                 return output_netlist
+
+        def _add_control(self) -> str:
+                control_statement = []
+
+                control_statement.append('\n.control')
+
+                # Section
+                # Append analysis
+                for element in self._analysis:
+                        control_statement.append(f'\t{element}')
+
+                # Section
+                # Save statements
+                # TODO: Wrap measurements and save statments with their respective analysis
+                output_path = os.path.join(self._output_path, 'output.raw')
+
+                # Keep vector names in the header
+                control_statement.append('\n\tset wr_vecnames')
+                
+                # Use a single scale (column) for all signals
+                control_statement.append('\tset wr_singlescale')
+
+                if not self._plot_all:
+                        control_statement.append(f'\twrdata {output_path} {' '.join(self._plots)}')
+                else:
+                        control_statement.append('\tsave all')
+                        control_statement.append(f'\twrdata {output_path} all')
+
+                # Section
+                # Apply ngspice measurements
+                # control_statement.append('\tmeas tran t_delay_l2h TRIG V(v_in) VAL=0.75 RISE=1 TARG V(v_out) VAL=0.75 RISE=1')
+                # control_statement.append('\tset filetype=ascii')
+                # control_statement.append('\tset nopadding')
+                # control_statement.append(f'\twrdata {os.path.join(self._output_path, "measurement.raw")} m_t_delay_l2h')
+
+                control_statement.append('\n\texit')
+                control_statement.append('.endc\n')
+
+                self._netlist.extend(control_statement)
+                return control_statement
 
         def add_transient(self, t_stop, **kwargs) -> str:
 
@@ -62,31 +100,22 @@ class Ngspice:
 
                 return transient_statement
 
-        def _add_control(self) -> str:
-                control_statement = []
+        def save_signal(self, signals) -> list:
+                #TODO: Check if valid net/port
+                if type(signals) is list:
+                        self._plots.extend(signals)
+                else:
+                        self._plots.append(signals)
 
-                control_statement.append('\n.control')
+                return self._plots
 
-                #TODO: Fix hardcode
-                control_statement.append('\tsave all')
+        def save_signal_all(self, flag) -> bool:
+                self._plot_all = flag
 
-                control_statement.append('\top')
+                return self._plot_all
 
-                # Append analysis
-                for element in self._analysis:
-                        control_statement.append(f'\t{element}')
-
-                output_path = os.path.join(self._output_path, 'output.raw')
-                control_statement.append('\n\tset wr_vecnames')
-                control_statement.append('\tset wr_singlescale')
-                control_statement.append(f'\twrdata {output_path} V(v_in)')
-
-                control_statement.append('\n\texit')
-                control_statement.append('.endc\n')
-
-                self._netlist.extend(control_statement)
-
-                return control_statement
+        def set_output_path(self, path) -> None:
+                self._output_path = path
 
         def run(self) -> str:
                 path_output_netlist = self._write_netlist()

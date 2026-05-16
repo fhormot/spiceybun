@@ -5,41 +5,53 @@ from sppy.ngspice import Ngspice
 from pprint import pprint
 
 @pytest.fixture
-def ngspice():
+def ngspice_basic():
     test_dir = Path(__file__).parent
 
     path_netlist = test_dir / "netlists" / "input_flat_no_variables.spice"
 
     return Ngspice(path_netlist)
 
-def test_include(ngspice):
-    path = 'foo.sp'
-    expected_include = f'.include "{path}"'
+@pytest.fixture
+def ngspice():
+    test_dir = Path(__file__).parent
 
-    assert ngspice._include(path) == expected_include
-    assert ngspice._netlist[-1] == expected_include
+    path_netlist = test_dir / "netlists" / "input_flat_no_variables.spice"
 
-def test_read_dut_netlist(ngspice):
-    ngspice._read_dut_nelist()
-
-    assert len(ngspice._netlist) > 0
-
-def test_set_output_path(ngspice):
-    path_new = Path(__file__).parent
-
-    path_old = ngspice._output_path
-
-    ngspice.set_output_path(path_new)
-
-    assert ngspice._output_path == path_new
-    assert ngspice._output_path != path_old
-
-def test_write_netlist(ngspice):
     path = Path(__file__).parent
     path_output = path / "outputs"
 
+    ngspice = Ngspice(path_netlist)
     ngspice.set_output_path(path_output)
 
+    ngspice.save_signal_all(False)
+
+    return ngspice
+
+def test_include(ngspice_basic):
+    path = 'foo.sp'
+    expected_include = f'.include {path}'
+
+    assert ngspice_basic._include(path) == expected_include
+    assert ngspice_basic._netlist[-1] == expected_include
+
+def test_read_dut_netlist(ngspice_basic):
+    ngspice_basic._read_dut_nelist()
+
+    assert len(ngspice_basic._netlist_dut) > 0
+
+def test_set_output_path(ngspice_basic):
+    path_new = Path(__file__).parent
+
+    path_old = ngspice_basic._output_path
+
+    ngspice_basic.set_output_path(path_new)
+
+    assert ngspice_basic._output_path == path_new
+    assert ngspice_basic._output_path != path_old
+
+@pytest.mark.skip
+def test_write_netlist(ngspice):
     t_stop = '10e-12'
     t_step =' 30e-9'
     t_start = '0'
@@ -51,12 +63,12 @@ def test_write_netlist(ngspice):
     ngspice._write_netlist()
 
 def test_run(ngspice):
-    path = Path(__file__).parent
-    path_output = path / "outputs"
-
-    ngspice.set_output_path(path_output)
     ngspice.add_transient(30e-9, t_step=10e-12)
 
-    output = ngspice.run()
+    #TODO: Refactor test_write_netlist test here
 
+    ngspice.save_signal('V(v_out)')
+    ngspice.save_signal('V(v_in)')
+
+    output = ngspice.run()
     assert output.stderr == ''
