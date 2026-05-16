@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Test outputs
+/tests/outputs/*
