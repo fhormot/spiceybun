@@ -1,13 +1,13 @@
-# SPPY
+# SPIPy
 
 An NGSPICE wrapper for simplified verification.
 
 # Usage
 
 ```Python
-import sppy
+import spipy
 
-simulator = sppy.ngspice('./netlist.spice')
+simulator = spipy.ngspice('./netlist.spice')
 
 ngspice.add_transient(1e-6)
 

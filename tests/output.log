@@ -1,9 +1,0 @@
-
-Note: No compatibility mode selected!
-
-
-Circuit: x1 vdd v_in v_out 0 comp-schmitt
-
-Error: incomplete or empty netlist
-       or no ".plot", ".print", or ".fourier" lines in batch mode;
-no simulations run!

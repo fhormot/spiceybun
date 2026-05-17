@@ -1,5 +1,5 @@
 def main():
-    print("Hello from sppy!")
+    print("Hello from spipy!")
 
 
 if __name__ == "__main__":

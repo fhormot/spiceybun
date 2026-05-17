@@ -109,8 +109,8 @@ class Ngspice:
                 # Section Monte Carlo
                 if mc:
                         control_statement.append('\n\t* Monte Carlo analysis')
-                        control_statement.append('\tsetseed {seed}')
-                        control_statement.append('\tlet mc_runs={mc_runs}')
+                        control_statement.append(f'\tsetseed {seed}')
+                        control_statement.append(f'\tlet mc_runs={mc_runs}')
                         control_statement.append('\tlet mc_index=0')
 
                         control_statement.append('\n\twhile mc_index < mc_runs')
