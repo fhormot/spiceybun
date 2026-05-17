@@ -72,6 +72,22 @@ def test_run(ngspice):
 
     ngspice.measure.explicit('meas tran t_delay_l2h TRIG V(v_in) VAL=0.75 RISE=1 TARG V(v_out) VAL=0.75 RISE=1')
     ngspice.measure.explicit('meas tran t_delay_h2l TRIG V(v_in) VAL=0.75 FALL=1 TARG V(v_out) VAL=0.75 FALL=1')
+    ngspice.measure.explicit('meas tran t_fail TRIG V(v_in) VAL=0.75 FALL=1 TARG V(v_out) VAL=1.75 FALL=1')
 
     output = ngspice.run()
+    assert output.stderr == ''
+
+def test_run_mc(ngspice):
+    ngspice.add_transient(30e-9, t_step=10e-12)
+
+    #TODO: Refactor test_write_netlist test here
+
+    ngspice.save_signal('V(v_out)')
+    ngspice.save_signal('V(v_in)')
+
+    ngspice.measure.explicit('meas tran t_delay_l2h TRIG V(v_in) VAL=0.75 RISE=1 TARG V(v_out) VAL=0.75 RISE=1')
+    ngspice.measure.explicit('meas tran t_delay_h2l TRIG V(v_in) VAL=0.75 FALL=1 TARG V(v_out) VAL=0.75 FALL=1')
+    ngspice.measure.explicit('meas tran t_fail TRIG V(v_in) VAL=0.75 FALL=1 TARG V(v_out) VAL=1.75 FALL=1')
+
+    output = ngspice.run(mc=True, mc_runs=2)
     assert output.stderr == ''

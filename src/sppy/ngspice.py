@@ -1,6 +1,6 @@
 import subprocess
 import os
-import numpy as np
+import pandas as pd
 from pathlib import Path
 
 from sppy.measure_ngspice import Measure_ngspice
@@ -11,7 +11,9 @@ class Ngspice:
 
                 self._analysis = []
                 self._plots = []
-                self._plot_all = False
+
+                # Control statements
+                self._plot_all          = False
 
                 self._path_netlist = path_netlist
 
@@ -49,8 +51,8 @@ class Ngspice:
 
                 return output_netlist
 
-        def _write_netlist(self) -> str:
-                self._add_control()
+        def _write_netlist(self, **kwargs) -> str:
+                self._add_control(**kwargs)
 
                 self._netlist.append('.end')
 
@@ -84,15 +86,39 @@ class Ngspice:
 
                 return command_path
 
-        def _add_control(self) -> str:
+        def _add_control(self, **kwargs) -> str:
+                # Kwargs
+                mc = kwargs.get('mc', False)
+
+                if mc:
+                        seed = kwargs.get('seed', 1)
+                        mc_runs = kwargs.get('mc_runs', 350)
+
                 control_statement = []
 
                 control_statement.append('\n.control')
+                # Section
+                # Measurement file preparation
+                measurements = self.measure.get_all()
+                if len(measurements)>0:
+                        control_statement.append('\t*Prepare measurement output file with a header')
+
+                        for measure in measurements:
+                                control_statement.append(f'\techo "{measure["name"]}" > {os.path.join(self._output_path, "results", f"meas_{measure["name"]}.raw")}')
+
+                # Section Monte Carlo
+                if mc:
+                        control_statement.append('\n\t* Monte Carlo analysis')
+                        control_statement.append(f'\tsetseed {seed}')
+                        control_statement.append(f'\tlet mc_runs={mc_runs}')
+                        control_statement.append(f'\tlet index=0')
+
+                        control_statement.append(f'\n\twhile index < mc_runs')
 
                 # Section
                 # Append analysis
                 for element in self._analysis:
-                        control_statement.append(f'\t{element}')
+                        control_statement.append(f'\t\t{element}')
 
                         suffix = element.split()[0]
 
@@ -102,40 +128,40 @@ class Ngspice:
                 output_path = os.path.join(self._output_path, 'output.raw')
 
                 # Keep vector names in the header
-                control_statement.append('\n\tset wr_vecnames')
+                control_statement.append('\n\t\tset wr_vecnames')
                 
                 # Use a single scale (column) for all signals
-                control_statement.append('\tset wr_singlescale')
+                control_statement.append('\t\tset wr_singlescale')
 
                 if not self._plot_all:
-                        control_statement.append(f'\twrdata {output_path} {' '.join(self._plots)}')
+                        control_statement.append(f'\t\twrdata {output_path} {' '.join(self._plots)}')
                 else:
-                        control_statement.append('\tsave all')
-                        control_statement.append(f'\twrdata {output_path} all')
+                        control_statement.append('\t\tsave all')
+                        control_statement.append(f'\t\twrdata {output_path} all')
 
-                # Section
-                # Apply ngspice measurements
-                # control_statement.append('\tmeas tran t_delay_l2h TRIG V(v_in) VAL=0.75 RISE=1 TARG V(v_out) VAL=0.75 RISE=1')
-                # control_statement.append('\tset filetype=ascii')
-                # control_statement.append('\tset nopadding')
-                # control_statement.append(f'\twrdata {os.path.join(self._output_path, "measurement.raw")} m_t_delay_l2h')
+                control_statement.append('\n\t\t* Measurements')
 
-                control_statement.append('\n\t* Measurements')
-
-                measurements = self.measure.get_all()
                 for measure in measurements:
-                        control_statement.append(f'\t{measure["measure"]}')
+                        control_statement.append(f'\t\t{measure["measure"]}')
 
                 if len(measurements) > 0:
-                        control_statement.append('\n\tset filetype=ascii')
-                        control_statement.append('\tset nopadding')
+                        control_statement.append('\n\t\tset filetype=ascii')
+                        control_statement.append('\t\tset nopadding')
 
                         meas_string_list = ' '.join([measure['name'] for measure in measurements])
 
-                        control_statement.append(f'\twrdata {os.path.join(self._output_path, "measurement.raw")} {meas_string_list}')
+                        # control_statement.append(f'\twrdata {os.path.join(self._output_path, "measurement.raw")} {meas_string_list}')
 
-                measurements = self.measure.get_all()
-                        
+                        for measure in measurements:
+                                control_statement.append(f'\t\techo "$&{measure["name"]}" >> {os.path.join(self._output_path, "results", f"meas_{measure["name"]}.raw")}')
+
+                if mc:
+                        control_statement.append('\n\t\tlet index = index + 1')
+                        control_statement.append('\t\treset')
+
+                        control_statement.append('\n\t* End of Monte Carlo iteration')
+                        control_statement.append('\tend')
+
                 control_statement.append('\n\texit')
                 control_statement.append('.endc\n')
 
@@ -176,15 +202,19 @@ class Ngspice:
         def set_output_path(self, path) -> None:
                 self._output_path = path
 
-        def run(self) -> str:
+        def run(self, **kwargs) -> str:
                 # Verify the output folder exists
                 if not os.path.exists(self._output_path):
                         os.makedirs(self._output_path)
 
+                # Verify that the results folder is available
+                if not os.path.exists(os.path.join(self._output_path, "results")):
+                        os.makedirs(os.path.join(self._output_path, "results"))
+
                 path_input_netlist = self._write_netlist_dut()
 
                 self._include(path_input_netlist)
-                path_output_netlist = self._write_netlist()
+                path_output_netlist = self._write_netlist(**kwargs)
 
                 command_path = self._write_run_command()
 
@@ -202,6 +232,6 @@ class Ngspice:
                         f.write(output.stdout)
                 os.chmod(command_path, 0o755)
 
-                self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
+                # self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
 
                 return output
