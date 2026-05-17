@@ -20,6 +20,8 @@ class Ngspice:
                 with open(self._path_netlist, 'r') as f:
                         self._netlist_dut = f.readlines()
 
+                # TODO: Strip existing control statements
+
         def _include(self, path, **kwargs) -> str:
                 # str = f'.include "{path}"'
                 str = f'.include {path}'
@@ -38,10 +40,37 @@ class Ngspice:
 
                 output_netlist = os.path.join(self._output_path, 'tb_test.spice')
 
+                # Verify the output folder exists
+                if not os.path.exists(self._output_path):
+                        os.makedirs(self._output_path)
+
                 with open(output_netlist, 'w') as f:
                         f.write('\n'.join(self._netlist))
+                os.chmod(output_netlist, 0o755)
+
+                self._netlist_output = output_netlist
 
                 return output_netlist
+        
+        def _write_run_command(self) -> None:
+                path_output_netlist = self._netlist_output
+
+                command_format = "#!/bin/bash\nngspice -i -o {output_path} {input_path} -a || sh"
+
+                command_path = os.path.join(self._output_path, 'run_command')
+                output_path = os.path.join(self._output_path, 'output.log')
+                input_path = path_output_netlist
+
+                netlist_command = command_format.format(
+                        output_path=output_path, 
+                        input_path=input_path
+                        )
+                
+                with open(command_path, 'w') as f:
+                        f.write(netlist_command)
+                os.chmod(command_path, 0o755)
+
+                return command_path
 
         def _add_control(self) -> str:
                 control_statement = []
@@ -52,6 +81,8 @@ class Ngspice:
                 # Append analysis
                 for element in self._analysis:
                         control_statement.append(f'\t{element}')
+
+                        suffix = element.split()[0]
 
                 # Section
                 # Save statements
@@ -120,23 +151,34 @@ class Ngspice:
         def run(self) -> str:
                 path_output_netlist = self._write_netlist()
 
-                command_format = "ngspice -i -o {output_path} {input_path} -a || sh"
+                # # TODO: Write command to a file and run the file
+                # command_format = "ngspice -i -o {output_path} {input_path} -a || sh"
 
-                output_path = os.path.join(self._output_path, 'output.log')
+                # output_path = os.path.join(self._output_path, 'output.log')
                 run_path = os.path.join(self._output_path, 'run.log')
-                raw_path = os.path.join(self._output_path, 'output.raw')
-                input_path = path_output_netlist
+                # raw_path = os.path.join(self._output_path, 'output.raw')
+                # input_path = path_output_netlist
 
-                netlist_command = command_format.format(
-                        output_path=output_path, 
-                        raw_path=raw_path,
-                        input_path=input_path
-                        )
+                # netlist_command = command_format.format(
+                #         output_path=output_path, 
+                #         raw_path=raw_path,
+                #         input_path=input_path
+                #         )
 
-                print(netlist_command)
+                # print(netlist_command)
+
+                # output = subprocess.run(
+                #         netlist_command, 
+                #         # env=self.env, 
+                #         shell=True, 
+                #         capture_output=True, 
+                #         text=True
+                # )
+
+                command_path = self._write_run_command()
 
                 output = subprocess.run(
-                        netlist_command, 
+                        command_path, 
                         # env=self.env, 
                         shell=True, 
                         capture_output=True, 
@@ -145,6 +187,6 @@ class Ngspice:
 
                 with open(run_path, 'w') as f:
                         f.write(output.stdout)
+                os.chmod(command_path, 0o755)
 
                 return output
-

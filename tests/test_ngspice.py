@@ -19,7 +19,7 @@ def ngspice():
     path_netlist = test_dir / "netlists" / "input_flat_no_variables.spice"
 
     path = Path(__file__).parent
-    path_output = path / "outputs"
+    path_output = path / "outputs" / "output_flat_no_variables"
 
     ngspice = Ngspice(path_netlist)
     ngspice.set_output_path(path_output)
