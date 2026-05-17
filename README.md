@@ -24,7 +24,7 @@ TBD
 # Long term roadmap
 
 - [ ] Enabling basic functionality:
-    - [ ] Analysis statements
+    - [ ] All analysis statements
     - [ ] Variables
     - [ ] Measurements
 - [ ] Sweeps and Monte Carlo

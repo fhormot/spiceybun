@@ -70,5 +70,8 @@ def test_run(ngspice):
     ngspice.save_signal('V(v_out)')
     ngspice.save_signal('V(v_in)')
 
+    ngspice.measure.explicit('meas tran t_delay_l2h TRIG V(v_in) VAL=0.75 RISE=1 TARG V(v_out) VAL=0.75 RISE=1')
+    ngspice.measure.explicit('meas tran t_delay_h2l TRIG V(v_in) VAL=0.75 FALL=1 TARG V(v_out) VAL=0.75 FALL=1')
+
     output = ngspice.run()
     assert output.stderr == ''

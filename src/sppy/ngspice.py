@@ -3,6 +3,8 @@ import os
 import numpy as np
 from pathlib import Path
 
+from sppy.measure_ngspice import Measure_ngspice
+
 class Ngspice:
         def __init__(self, path_netlist, **kwargs):
                 self._netlist = []
@@ -12,15 +14,18 @@ class Ngspice:
                 self._plot_all = False
 
                 self._path_netlist = path_netlist
-                self._include(path_netlist)
 
                 self._output_path = Path(__file__).parent
+
+                self.measure = Measure_ngspice()
 
         def _read_dut_nelist(self) -> None:
                 with open(self._path_netlist, 'r') as f:
                         self._netlist_dut = f.readlines()
 
                 # TODO: Strip existing control statements
+
+                # TODO: Extract variables
 
         def _include(self, path, **kwargs) -> str:
                 # str = f'.include "{path}"'
@@ -33,16 +38,23 @@ class Ngspice:
 
                 return str
 
-        def _write_netlist(self) -> None:
+        def _write_netlist_dut(self) -> str:
+                self._read_dut_nelist()
+
+                output_netlist = os.path.join(self._output_path, 'netlist.spice')
+
+                with open(output_netlist, 'w') as f:
+                        f.writelines(self._netlist_dut)
+                os.chmod(output_netlist, 0o755)
+
+                return output_netlist
+
+        def _write_netlist(self) -> str:
                 self._add_control()
 
                 self._netlist.append('.end')
 
                 output_netlist = os.path.join(self._output_path, 'tb_test.spice')
-
-                # Verify the output folder exists
-                if not os.path.exists(self._output_path):
-                        os.makedirs(self._output_path)
 
                 with open(output_netlist, 'w') as f:
                         f.write('\n'.join(self._netlist))
@@ -52,7 +64,7 @@ class Ngspice:
 
                 return output_netlist
         
-        def _write_run_command(self) -> None:
+        def _write_run_command(self) -> str:
                 path_output_netlist = self._netlist_output
 
                 command_format = "#!/bin/bash\nngspice -i -o {output_path} {input_path} -a || sh"
@@ -108,6 +120,22 @@ class Ngspice:
                 # control_statement.append('\tset nopadding')
                 # control_statement.append(f'\twrdata {os.path.join(self._output_path, "measurement.raw")} m_t_delay_l2h')
 
+                control_statement.append('\n\t* Measurements')
+
+                measurements = self.measure.get_all()
+                for measure in measurements:
+                        control_statement.append(f'\t{measure["measure"]}')
+
+                if len(measurements) > 0:
+                        control_statement.append('\n\tset filetype=ascii')
+                        control_statement.append('\tset nopadding')
+
+                        meas_string_list = ' '.join([measure['name'] for measure in measurements])
+
+                        control_statement.append(f'\twrdata {os.path.join(self._output_path, "measurement.raw")} {meas_string_list}')
+
+                measurements = self.measure.get_all()
+                        
                 control_statement.append('\n\texit')
                 control_statement.append('.endc\n')
 
@@ -149,31 +177,14 @@ class Ngspice:
                 self._output_path = path
 
         def run(self) -> str:
+                # Verify the output folder exists
+                if not os.path.exists(self._output_path):
+                        os.makedirs(self._output_path)
+
+                path_input_netlist = self._write_netlist_dut()
+
+                self._include(path_input_netlist)
                 path_output_netlist = self._write_netlist()
-
-                # # TODO: Write command to a file and run the file
-                # command_format = "ngspice -i -o {output_path} {input_path} -a || sh"
-
-                # output_path = os.path.join(self._output_path, 'output.log')
-                run_path = os.path.join(self._output_path, 'run.log')
-                # raw_path = os.path.join(self._output_path, 'output.raw')
-                # input_path = path_output_netlist
-
-                # netlist_command = command_format.format(
-                #         output_path=output_path, 
-                #         raw_path=raw_path,
-                #         input_path=input_path
-                #         )
-
-                # print(netlist_command)
-
-                # output = subprocess.run(
-                #         netlist_command, 
-                #         # env=self.env, 
-                #         shell=True, 
-                #         capture_output=True, 
-                #         text=True
-                # )
 
                 command_path = self._write_run_command()
 
@@ -185,8 +196,12 @@ class Ngspice:
                         text=True
                 )
 
+                run_path = os.path.join(self._output_path, 'run.log')
+
                 with open(run_path, 'w') as f:
                         f.write(output.stdout)
                 os.chmod(command_path, 0o755)
+
+                self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
 
                 return output
