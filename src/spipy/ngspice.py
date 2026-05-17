@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from pathlib import Path
 
-from sppy.measure_ngspice import Measure_ngspice
+from spipy.measure_ngspice import Measure_ngspice
 
 class Ngspice:
         def __init__(self, path_netlist, **kwargs):
@@ -109,11 +109,11 @@ class Ngspice:
                 # Section Monte Carlo
                 if mc:
                         control_statement.append('\n\t* Monte Carlo analysis')
-                        control_statement.append(f'\tsetseed {seed}')
-                        control_statement.append(f'\tlet mc_runs={mc_runs}')
-                        control_statement.append(f'\tlet index=0')
+                        control_statement.append('\tsetseed {seed}')
+                        control_statement.append('\tlet mc_runs={mc_runs}')
+                        control_statement.append('\tlet mc_index=0')
 
-                        control_statement.append(f'\n\twhile index < mc_runs')
+                        control_statement.append('\n\twhile mc_index < mc_runs')
 
                 # Section
                 # Append analysis
@@ -145,18 +145,19 @@ class Ngspice:
                         control_statement.append(f'\t\t{measure["measure"]}')
 
                 if len(measurements) > 0:
-                        control_statement.append('\n\t\tset filetype=ascii')
-                        control_statement.append('\t\tset nopadding')
+                        # control_statement.append('\n\t\tset filetype=ascii')
+                        # control_statement.append('\t\tset nopadding')
 
                         meas_string_list = ' '.join([measure['name'] for measure in measurements])
 
                         # control_statement.append(f'\twrdata {os.path.join(self._output_path, "measurement.raw")} {meas_string_list}')
 
+                        control_statement.append('\n\t\t* Measurement output in separate files')
                         for measure in measurements:
                                 control_statement.append(f'\t\techo "$&{measure["name"]}" >> {os.path.join(self._output_path, "results", f"meas_{measure["name"]}.raw")}')
 
                 if mc:
-                        control_statement.append('\n\t\tlet index = index + 1')
+                        control_statement.append('\n\t\tlet mc_index = mc_index + 1')
                         control_statement.append('\t\treset')
 
                         control_statement.append('\n\t* End of Monte Carlo iteration')

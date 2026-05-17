@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 
-from sppy.ngspice import Ngspice
+from spipy.ngspice import Ngspice
 from pprint import pprint
 
 @pytest.fixture
