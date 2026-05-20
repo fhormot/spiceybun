@@ -8,7 +8,7 @@ from pprint import pprint
 def ngspice_basic():
     test_dir = Path(__file__).parent
 
-    path_netlist = test_dir / "netlists" / "input_flat_no_variables.spice"
+    path_netlist = test_dir / "netlists" / "input_flat_variables.spice"
 
     return Ngspice(path_netlist)
 
@@ -16,15 +16,19 @@ def ngspice_basic():
 def ngspice():
     test_dir = Path(__file__).parent
 
-    path_netlist = test_dir / "netlists" / "input_flat_no_variables.spice"
+    path_netlist = test_dir / "netlists" / "input_flat_variables.spice"
 
     path = Path(__file__).parent
-    path_output = path / "outputs" / "output_flat_no_variables"
+    path_output = path / "outputs" / "output_flat_variables"
 
     ngspice = Ngspice(path_netlist)
     ngspice.set_output_path(path_output)
 
     ngspice.save_signal_all(False)
+
+    ngspice.set_variable('v_vdd', '1.5')
+    ngspice.set_variable('t_edge', '500e-12')
+    ngspice.set_variable('c_load', '1e-15')
 
     return ngspice
 
@@ -40,6 +44,10 @@ def test_read_dut_netlist(ngspice_basic):
 
     assert len(ngspice_basic._netlist_dut) > 0
 
+    variables = ngspice_basic.get_variables()
+
+    assert len(variables) == 3
+
 def test_set_output_path(ngspice_basic):
     path_new = Path(__file__).parent
 
@@ -52,18 +60,18 @@ def test_set_output_path(ngspice_basic):
 
 @pytest.mark.skip
 def test_write_netlist(ngspice):
-    t_stop = '10e-12'
-    t_step =' 30e-9'
+    t_step = '10e-12'
+    t_stop =' 500e-9'
     t_start = '0'
     t_max = '100e-12'
-    statement = ngspice.add_transient(30e-9, t_step=10e-12)
+    statement = ngspice.add_transient(300e-9, t_step=10e-12)
 
     assert statement == f'tran {t_step} {t_stop} {t_start} {t_max}'
 
     ngspice._write_netlist()
 
 def test_run(ngspice):
-    ngspice.add_transient(30e-9, t_step=10e-12)
+    ngspice.add_transient(500e-9, t_step=10e-12)
 
     #TODO: Refactor test_write_netlist test here
 

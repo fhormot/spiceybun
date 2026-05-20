@@ -1,0 +1,16 @@
+x1 VDD v_in v_out 0 subckt-rc
+Vin v_in 0 pulse (0 {v_vdd} 100n {t_edge} {t_edge} 200n 2)
+R1 v_out 0 1e9
+
+.subckt subckt-rc VDD v_ai v_ao VSS
+*.ipin v_ai
+*.opin v_ao
+*.ipin VDD
+*.ipin VSS
+
+C1 v_ao VSS {c_load}
+R1 v_ai v_ao 10e3
+
+.ends
+
+.end
