@@ -44,7 +44,7 @@ class Ngspice:
 
         def get_variables(self) -> list:
                 return self._variables
-        
+
         def set_variable(self, name, value) -> Variable | None:
                 for variable in self._variables:
                         if variable.get_name() == name:
@@ -96,7 +96,7 @@ class Ngspice:
                 self._netlist_output = output_netlist
 
                 return output_netlist
-        
+
         def _write_run_command(self) -> str:
                 path_output_netlist = self._netlist_output
 
@@ -134,7 +134,7 @@ class Ngspice:
 
                 # Start of control statements
                 control_statement.append('\n.control')
-                
+
                 # Section
                 # Measurement file preparation
                 control_statement.extend(self._netlist_define_measurement_setup())
@@ -175,7 +175,7 @@ class Ngspice:
 
                 self._netlist.extend(control_statement)
                 return control_statement
-        
+
         def _netlist_define_plot(self) -> list:
                 control_statement = []
 
@@ -194,7 +194,7 @@ class Ngspice:
                         control_statement.append(f'\t\twrdata {output_path} all')
 
                 return control_statement
-        
+
         def _netlist_define_measurement_setup(self) -> list:
                 control_statement = []
 
@@ -227,6 +227,40 @@ class Ngspice:
                         control_statement.append(f'\t\techo "{measurement_list}" >> {os.path.join(self._output_path, "results", "measurements.raw")}')
 
                 return control_statement
+
+        def _run_single_run(self, **kwargs) -> str:
+                # Verify the output folder exists
+                if not os.path.exists(self._output_path):
+                        os.makedirs(self._output_path)
+
+                # Verify that the results folder is available
+                if not os.path.exists(os.path.join(self._output_path, "results")):
+                        os.makedirs(os.path.join(self._output_path, "results"))
+
+                path_input_netlist = self._write_netlist_dut()
+
+                self._include(path_input_netlist)
+                path_output_netlist = self._write_netlist(**kwargs)
+
+                command_path = self._write_run_command()
+
+                output = subprocess.run(
+                        command_path, 
+                        # env=self.env, 
+                        shell=True, 
+                        capture_output=True, 
+                        text=True
+                )
+
+                run_path = os.path.join(self._output_path, 'run.log')
+
+                with open(run_path, 'w') as f:
+                        f.write(output.stdout)
+                os.chmod(command_path, 0o755)
+
+                # self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
+
+                return output.stdout
 
         def add_transient(self, t_stop, **kwargs) -> str:
 
@@ -263,35 +297,15 @@ class Ngspice:
                 self._output_path = path
 
         def run(self, **kwargs) -> str:
-                # Verify the output folder exists
-                if not os.path.exists(self._output_path):
-                        os.makedirs(self._output_path)
+                # TODO: Sweeps
+                sweepFlag = False
 
-                # Verify that the results folder is available
-                if not os.path.exists(os.path.join(self._output_path, "results")):
-                        os.makedirs(os.path.join(self._output_path, "results"))
+                for variable in self._variables:
+                        if variable.get_value() is None:
+                                raise ValueError(f"Variable {variable.get_name()} has no value assigned.")
+                        
+                        if type(variable.get_value()) is list:
+                                sweepFlag = True
+                                break
 
-                path_input_netlist = self._write_netlist_dut()
-
-                self._include(path_input_netlist)
-                path_output_netlist = self._write_netlist(**kwargs)
-
-                command_path = self._write_run_command()
-
-                output = subprocess.run(
-                        command_path, 
-                        # env=self.env, 
-                        shell=True, 
-                        capture_output=True, 
-                        text=True
-                )
-
-                run_path = os.path.join(self._output_path, 'run.log')
-
-                with open(run_path, 'w') as f:
-                        f.write(output.stdout)
-                os.chmod(command_path, 0o755)
-
-                # self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
-
-                return output
+                return self._run_single_run(**kwargs)
