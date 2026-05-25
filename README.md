@@ -26,8 +26,13 @@ TBD
 - [ ] Enabling basic functionality:
     - [ ] All analysis statements
     - [ ] Variables
+        - [x] Simple variables
+        - [ ] Equations
+        - [ ] Advanced variable features (distribution, limits, etc.)
     - [ ] Measurements
-- [ ] Sweeps and Monte Carlo
+        - [x] Explicit spice input
+- [x] Sweeps
+- [x] Monte Carlo
 - [ ] Advanced features
     - [ ] Netlist from XSchem
     - [ ] Simulator options

@@ -280,7 +280,7 @@ class Ngspice:
                 # self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
 
                 return output.stdout
-        
+
         def _run_sweep(self, sweep_list, **kwargs) -> list:
                 results = []
 
@@ -291,6 +291,8 @@ class Ngspice:
                 return results
 
         def add_transient(self, t_stop, **kwargs) -> str:
+                # Overwrite previous transient statement if it exists
+                self._analysis = [x for x in self._analysis if not x.startswith("tran")]
 
                 # TODO: Calculate suggested/maximum steps
                 # Step 1: calculate based on stop time --> Bad for long sims with sharp transients
@@ -325,22 +327,14 @@ class Ngspice:
                 self._output_path = path
 
         def run(self, **kwargs) -> str | list:
-                # TODO: Sweeps
-                sweepFlag = False
-
-                for variable in self._variables:
-                        if variable.get_value() is None:
-                                raise ValueError(f"Variable {variable.get_name()} has no value assigned.")
-                        
-                        if type(variable.get_value()) is list:
-                                sweepFlag = True
-                                break
-
-                if not sweepFlag:
-                        return self._run_single_run(**kwargs) 
+                if len(self._variables) == 0:
+                        return self._run_single_run(**kwargs)
                 
                 #Create all variation combinations
                 permutation_pre_list = [variable.get_split() for variable in self._variables]
                 permutations = list(product(*permutation_pre_list))
+
+                if len(permutations) == 1:
+                        return self._run_single_run(**kwargs)
 
                 return self._run_sweep(permutations, **kwargs)
