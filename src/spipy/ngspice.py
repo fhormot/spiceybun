@@ -1,8 +1,11 @@
+import enum
 import subprocess
 import os
 import re
 import pandas as pd
 from pathlib import Path
+
+from itertools import product
 
 from spipy.measure_ngspice import Measure_ngspice
 from spipy.variable import Variable
@@ -73,8 +76,11 @@ class Ngspice:
 
                 return str
 
-        def _write_netlist_dut(self) -> str:
-                output_netlist = os.path.join(self._output_path, 'netlist.spice')
+        def _write_netlist_dut(self, **kwargs) -> str:
+                subfolder = kwargs.get('id', '')
+
+                output_path = os.path.join(self._output_path, subfolder)
+                output_netlist = os.path.join(output_path, 'netlist.spice')
 
                 with open(output_netlist, 'w') as f:
                         f.writelines(self._netlist_dut)
@@ -83,11 +89,14 @@ class Ngspice:
                 return output_netlist
 
         def _write_netlist(self, **kwargs) -> str:
+                subfolder = kwargs.get('id', '')
+
                 self._add_control(**kwargs)
 
                 self._netlist.append('.end')
 
-                output_netlist = os.path.join(self._output_path, 'tb_test.spice')
+                output_path = os.path.join(self._output_path, subfolder)
+                output_netlist = os.path.join(output_path, 'tb_test.spice')
 
                 with open(output_netlist, 'w') as f:
                         f.write('\n'.join(self._netlist))
@@ -97,13 +106,17 @@ class Ngspice:
 
                 return output_netlist
 
-        def _write_run_command(self) -> str:
+        def _write_run_command(self, **kwargs) -> str:
+                subfolder = kwargs.get('id', '')
+
+                folder_path = os.path.join(self._output_path, subfolder)
+
                 path_output_netlist = self._netlist_output
 
                 command_format = "#!/bin/bash\nngspice -i -o {output_path} {input_path} -a || sh"
 
-                command_path = os.path.join(self._output_path, 'run_command')
-                output_path = os.path.join(self._output_path, 'output.log')
+                command_path = os.path.join(folder_path, 'run_command')
+                output_path = os.path.join(folder_path, 'output.log')
                 input_path = path_output_netlist
 
                 netlist_command = command_format.format(
@@ -125,7 +138,8 @@ class Ngspice:
                 control_statement.append('\n* Control statements added by the tool')
 
                 # Parameter definitions
-                for variable in self._variables:
+                variables = kwargs.get('variables', self._variables)
+                for variable in variables:
                         control_statement.append(variable.get_value_definition())
 
                 if mc:
@@ -158,7 +172,7 @@ class Ngspice:
                 # Section
                 # Save statements
                 # TODO: Wrap measurements and save statments with their respective analysis
-                control_statement.extend(self._netlist_define_plot())
+                control_statement.extend(self._netlist_define_plot(**kwargs))
 
                 # Measureement definition and write to file
                 control_statement.extend(self._netlist_define_measurement_write())
@@ -176,10 +190,11 @@ class Ngspice:
                 self._netlist.extend(control_statement)
                 return control_statement
 
-        def _netlist_define_plot(self) -> list:
+        def _netlist_define_plot(self, **kwargs) -> list:
                 control_statement = []
 
-                output_path = os.path.join(self._output_path, 'output.raw')
+                subfolder = kwargs.get('id', '')
+                output_path = os.path.join(self._output_path, subfolder, 'output.raw')
 
                 # Keep vector names in the header
                 control_statement.append('\n\t\tset wr_vecnames')
@@ -202,7 +217,7 @@ class Ngspice:
                 if len(measurements)>0:
                         control_statement.append('\t*Prepare measurement output file with a header')
                         measurement_list = ' '.join([measure['name'] for measure in measurements])
-                        control_statement.append(f'\techo "{measurement_list}" > {os.path.join(self._output_path, "results", "measurements.raw\n ")}')
+                        control_statement.append(f'\techo "{measurement_list}" > {os.path.join(self._output_path, "results", "measurements.raw\n")}')
 
                 return control_statement
 
@@ -229,20 +244,24 @@ class Ngspice:
                 return control_statement
 
         def _run_single_run(self, **kwargs) -> str:
+                subfolder = kwargs.get('id', '')
+
+                output_path = os.path.join(self._output_path, subfolder)
+
                 # Verify the output folder exists
-                if not os.path.exists(self._output_path):
-                        os.makedirs(self._output_path)
+                if not os.path.exists(output_path):
+                        os.makedirs(output_path)
 
                 # Verify that the results folder is available
-                if not os.path.exists(os.path.join(self._output_path, "results")):
-                        os.makedirs(os.path.join(self._output_path, "results"))
+                if not os.path.exists(os.path.join(output_path, "results")):
+                        os.makedirs(os.path.join(output_path, "results"))
 
-                path_input_netlist = self._write_netlist_dut()
+                path_input_netlist = self._write_netlist_dut(**kwargs)
 
                 self._include(path_input_netlist)
                 path_output_netlist = self._write_netlist(**kwargs)
 
-                command_path = self._write_run_command()
+                command_path = self._write_run_command(**kwargs)
 
                 output = subprocess.run(
                         command_path, 
@@ -252,7 +271,7 @@ class Ngspice:
                         text=True
                 )
 
-                run_path = os.path.join(self._output_path, 'run.log')
+                run_path = os.path.join(output_path, 'run.log')
 
                 with open(run_path, 'w') as f:
                         f.write(output.stdout)
@@ -261,6 +280,15 @@ class Ngspice:
                 # self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
 
                 return output.stdout
+        
+        def _run_sweep(self, sweep_list, **kwargs) -> list:
+                results = []
+
+                for idx, run in enumerate(sweep_list):
+                        self._netlist = []
+                        results.append(self._run_single_run(variables=run, id=f'{idx}', **kwargs))
+
+                return results
 
         def add_transient(self, t_stop, **kwargs) -> str:
 
@@ -296,7 +324,7 @@ class Ngspice:
         def set_output_path(self, path) -> None:
                 self._output_path = path
 
-        def run(self, **kwargs) -> str:
+        def run(self, **kwargs) -> str | list:
                 # TODO: Sweeps
                 sweepFlag = False
 
@@ -308,4 +336,11 @@ class Ngspice:
                                 sweepFlag = True
                                 break
 
-                return self._run_single_run(**kwargs)
+                if not sweepFlag:
+                        return self._run_single_run(**kwargs) 
+                
+                #Create all variation combinations
+                permutation_pre_list = [variable.get_split() for variable in self._variables]
+                permutations = list(product(*permutation_pre_list))
+
+                return self._run_sweep(permutations, **kwargs)
