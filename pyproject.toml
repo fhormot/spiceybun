@@ -1,6 +1,9 @@
 [project]
 name = "spiceybun"
 version = "0.1.0"
+authors = [
+    { name="Filip Hormot", email="f.hormot@gmail.com" },
+]
 description = "A python verification wrapper for SPICE."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -8,6 +11,8 @@ dependencies = [
     "numpy>=2.4.5",
     "pandas>=3.0.3",
 ]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12"]
@@ -20,3 +25,7 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[project.urls]
+Homepage = "https://github.com/fhormot/spiceybun"
+Issues = "https://github.com/fhormot/spiceybun/issues"
