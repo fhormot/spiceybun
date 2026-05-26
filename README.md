@@ -1,15 +1,15 @@
-# SPIPy
+# SPICEybun
 
 An NGSPICE wrapper for simplified verification.
 
 # Usage
 
 ```Python
-import spipy
+import spiceybun
 
-simulator = spipy.ngspice('./netlist.spice')
+simulator = spiceybun.ngspice('./netlist.spice')
 
-ngspice.add_transient(1e-6)
+simulator.add_transient(1e-6)
 
 simulator.save_signal('V(v_out)')
 simulator.save_signal('V(v_in)')

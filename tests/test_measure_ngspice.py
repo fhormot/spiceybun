@@ -1,6 +1,6 @@
 import pytest
 
-from spipy.measure_ngspice import Measure_ngspice
+from spiceybun.measure_ngspice import Measure_ngspice
 
 @pytest.fixture
 def measure_ngspice():

@@ -7,8 +7,8 @@ from pathlib import Path
 
 from itertools import product
 
-from spipy.measure_ngspice import Measure_ngspice
-from spipy.variable import Variable
+from spiceybun.measure_ngspice import Measure_ngspice
+from spiceybun.variable import Variable
 
 class Ngspice:
         def __init__(self, path_netlist, **kwargs):
