@@ -5,9 +5,9 @@ An NGSPICE wrapper for simplified verification.
 # Usage
 
 ```Python
-import spiceybun
+from spiceybun import ngspice
 
-simulator = spiceybun.ngspice('./netlist.spice')
+simulator = ngspice('./netlist.spice')
 
 simulator.add_transient(1e-6)
 
@@ -25,6 +25,7 @@ TBD
 
 - [ ] Enabling basic functionality:
     - [ ] All analysis statements
+    - [ ] Libraries
     - [ ] Variables
         - [x] Simple variables
         - [ ] Equations
@@ -37,3 +38,4 @@ TBD
     - [ ] Netlist from XSchem
     - [ ] Simulator options
     - [ ] Report generation
+    - [ ] Simulator error handling
