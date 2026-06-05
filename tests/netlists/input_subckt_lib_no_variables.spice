@@ -1,0 +1,19 @@
+x1 VDD v_in v_out 0 comp-schmitt
+Vdd VDD 0 1.5
+Vin v_in 0 pwl(0 0, 1e-3 1.5, 2e-3 0)
+C1 v_out 0 1e-15
+
+*.lib cornerMOSlv.lib mos_tt
+
+.subckt comp-schmitt VDD v_ai v_o VSS
+XM1 v_o_n_raw v_ai net1 VSS sg13_lv_nmos w=0.5u l=0.4u ng=1
+XM2 net1 v_ai VSS VSS sg13_lv_nmos w=0.5u l=0.4u ng=1
+XM3 v_o_n_raw v_ai net2 VDD sg13_lv_pmos w=1.0u l=0.4u ng=1
+XM4 net2 v_ai VDD VDD sg13_lv_pmos w=1.0u l=0.4u ng=1
+XM5 VDD v_o_n_raw net1 VSS sg13_lv_nmos w=0.5u l=0.4u ng=1
+XM6 VSS v_o_n_raw net2 VDD sg13_lv_pmos w=1.1u l=0.4u ng=1
+XMN0 v_o v_o_n_raw VSS VSS sg13_lv_nmos w=740.00n l=0.13u ng=1
+XMP0 v_o v_o_n_raw VDD VDD sg13_lv_pmos w=1.12u l=0.13u ng=1
+.ends
+
+.end

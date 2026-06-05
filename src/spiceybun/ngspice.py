@@ -1,8 +1,6 @@
-import enum
 import subprocess
 import os
 import re
-import pandas as pd
 from pathlib import Path
 
 from itertools import product
@@ -16,7 +14,9 @@ class Ngspice:
 
                 self._analysis          = []
                 self._variables         = []
+                self._libraries         = []
                 self._plots             = []
+                self._spiceinit         = ''
 
                 # Control statements
                 self._plot_all          = False
@@ -29,6 +29,8 @@ class Ngspice:
 
                 # Preparation during init
                 self._read_dut_nelist()
+
+# Internal methods
 
         def _read_dut_variables(self) -> None:
                 variables = []
@@ -44,17 +46,6 @@ class Ngspice:
                 for variable in variables:
                         name = variable.strip('{}')
                         self._variables.append(Variable(name))
-
-        def get_variables(self) -> list:
-                return self._variables
-
-        def set_variable(self, name, value) -> Variable | None:
-                for variable in self._variables:
-                        if variable.get_name() == name:
-                                variable.set_value(value)
-                                return variable
-
-                return None
 
         def _read_dut_nelist(self) -> None:
                 with open(self._path_netlist, 'r') as f:
@@ -113,7 +104,9 @@ class Ngspice:
 
                 path_output_netlist = self._netlist_output
 
-                command_format = "#!/bin/bash\nngspice -i -o {output_path} {input_path} -a || sh"
+                # command_format = "#!/bin/bash\nngspice -i -o {output_path} {input_path} -a || sh"
+                command_format = "#!/bin/bash\nngspice -o {output_path} {input_path} -a"
+                command_format = "#!/bin/bash\nngspice -b -o {output_path} {input_path} -a"
 
                 command_path = os.path.join(folder_path, 'run_command')
                 output_path = os.path.join(folder_path, 'output.log')
@@ -130,6 +123,24 @@ class Ngspice:
 
                 return command_path
 
+        def _write_spiceinit(self, **kwargs) -> str:
+                if self._spiceinit == '':
+                        return ''
+
+                subfolder = kwargs.get('id', '')
+
+                output_path = os.path.join(self._output_path, subfolder)
+                output_spiceinit = os.path.join(output_path, '.spiceinit')
+
+                with open(self._spiceinit, 'r') as f:
+                        spiceinit_content = f.read()
+
+                with open(output_spiceinit, 'w') as f:
+                        f.write(spiceinit_content)
+                os.chmod(output_spiceinit, 0o755)
+
+                return output_spiceinit
+
         def _add_control(self, **kwargs) -> list:
                 # Kwargs
                 mc = kwargs.get('mc', False)
@@ -138,7 +149,7 @@ class Ngspice:
                 control_statement.append('\n* Control statements added by the tool')
 
                 # Parameter definitions
-                variables = kwargs.get('variables', self._variables)
+                variables = kwargs.get('variables', self._libraries + self._variables)
                 for variable in variables:
                         control_statement.append(variable.get_value_definition())
 
@@ -167,7 +178,7 @@ class Ngspice:
                 for element in self._analysis:
                         control_statement.append(f'\t\t{element}')
 
-                        suffix = element.split()[0]
+                        # suffix = element.split()[0]
 
                 # Section
                 # Save statements
@@ -257,9 +268,10 @@ class Ngspice:
                         os.makedirs(os.path.join(output_path, "results"))
 
                 path_input_netlist = self._write_netlist_dut(**kwargs)
+                self._write_spiceinit(**kwargs)
 
                 self._include(path_input_netlist)
-                path_output_netlist = self._write_netlist(**kwargs)
+                self._write_netlist(**kwargs)
 
                 command_path = self._write_run_command(**kwargs)
 
@@ -290,6 +302,26 @@ class Ngspice:
 
                 return results
 
+# Public methods
+
+        def get_variables(self) -> list:
+                return self._variables
+
+        def set_variable(self, name, value) -> Variable | None:
+                for variable in self._variables:
+                        if variable.get_name() == name:
+                                variable.set_value(value)
+                                return variable
+
+                return None
+
+        def add_library(self, path, section=''):
+                library = Variable(name=path, type='library')
+                library.set_value(section)
+                self._libraries.append(library)
+
+                return library
+
         def add_transient(self, t_stop, **kwargs) -> str:
                 # Overwrite previous transient statement if it exists
                 self._analysis = [x for x in self._analysis if not x.startswith("tran")]
@@ -309,6 +341,11 @@ class Ngspice:
 
                 return transient_statement
 
+        def add_spiceinit(self, path) -> str:
+                self._spiceinit = path
+
+                return self._spiceinit
+
         def save_signal(self, signals) -> list:
                 #TODO: Check if valid net/port
                 if type(signals) is list:
@@ -327,11 +364,13 @@ class Ngspice:
                 self._output_path = path
 
         def run(self, **kwargs) -> str | list:
-                if len(self._variables) == 0:
+                total_variations = self._libraries + self._variables
+
+                if len(total_variations) == 0:
                         return self._run_single_run(**kwargs)
                 
                 #Create all variation combinations
-                permutation_pre_list = [variable.get_split() for variable in self._variables]
+                permutation_pre_list = [variable.get_split() for variable in total_variations]
                 permutations = list(product(*permutation_pre_list))
 
                 if len(permutations) == 1:

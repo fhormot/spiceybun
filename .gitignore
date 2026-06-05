@@ -6,8 +6,21 @@ dist/
 wheels/
 *.egg-info
 
+!.gitignore
+
 # Virtual environments
 .venv
 
 # Test outputs
 /tests/outputs/*
+
+# Library files - ignore everything in ng-libs except specific file types
+/ng-libs/**
+
+# Unignore directories so nested files can be re-included
+!/ng-libs/**/
+
+# Keep specific file types and spice init files
+!/ng-libs/**/*.lib
+!/ng-libs/**/*.osdi
+!/ng-libs/**/.spiceinit

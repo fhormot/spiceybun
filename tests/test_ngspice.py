@@ -1,8 +1,40 @@
 import pytest
+
+import os
 from pathlib import Path
 
 from spiceybun.ngspice import Ngspice
-from pprint import pprint
+
+@pytest.fixture
+def set_env_var():
+    original_pdk = os.environ.get("PDK")
+    original_pdk_root = os.environ.get("PDK_ROOT")
+    original_spiceinit = os.environ.get("SPICEINIT")    
+
+    top_dir = Path(__file__).parent.parent
+    path_pdk = top_dir / "ng-libs"
+    path_spiceinit = path_pdk / "ihp-sg13g2" / "libs.tech" / "ngspice" / ".spiceinit"
+    os.environ["PDK"] = "ihp-sg13g2"
+    os.environ["PDK_ROOT"] = str(path_pdk)
+    os.environ["SPICEINIT"] = str(path_spiceinit)
+
+    yield
+
+    # Restore the original value
+    if original_pdk is None:
+        os.environ.pop("$PDK", None)
+    else:
+        os.environ["PDK"] = original_pdk
+
+    if original_pdk_root is None:
+        os.environ.pop("PDK_ROOT", None)
+    else:
+        os.environ["PDK_ROOT"] = original_pdk_root
+
+    if original_spiceinit is None:
+        os.environ.pop("SPICEINIT", None)
+    else:
+        os.environ["SPICEINIT"] = original_spiceinit
 
 @pytest.fixture
 def ngspice_basic():
@@ -70,6 +102,38 @@ def ngspice():
 
     return ngspice
 
+@pytest.fixture
+def ngspice_no_variables_lib(set_env_var):
+    test_dir = Path(__file__).parent
+
+    path_netlist = test_dir / "netlists" / "input_subckt_lib_no_variables.spice"
+
+    path = Path(__file__).parent
+    path_output = path / "outputs" / "output_subckt_lib_no_variables"
+
+    ngspice = Ngspice(path_netlist)
+    ngspice.set_output_path(path_output)
+
+    ngspice.add_spiceinit(os.environ.get("SPICEINIT"))
+    path_library = "cornerMOSlv.lib" 
+    ngspice.add_library(path_library, section='mos_tt')
+
+    ngspice.add_transient(2e-3, t_step=1e-10, t_max=1e-7)
+
+    ngspice.save_signal('V(v_out)')
+    ngspice.save_signal('V(v_in)')
+
+    ngspice.measure.explicit('meas tran v_th_l2h FIND V(v_in) WHEN V(v_out)=0.75 RISE=1')
+    ngspice.measure.explicit('meas tran v_th_h2l FIND V(v_in) WHEN V(v_out)=0.75 FALL=1')
+
+    ngspice.save_signal_all(False)
+
+    return ngspice
+
+def test_environment(set_env_var):
+    print(f'$PDK: {os.environ.get("PDK")}')
+    print(f'$PDK_ROOT: {os.environ.get("PDK_ROOT")}')
+
 def test_include(ngspice_basic):
     path = 'foo.sp'
     expected_include = f'.include {path}'
@@ -136,3 +200,7 @@ def test_run_sweep(ngspice):
 
     for output_single in output:
         assert output_single != ''
+
+def test_run_no_variables_lib(ngspice_no_variables_lib):
+    output = ngspice_no_variables_lib.run()
+    assert output != ''
