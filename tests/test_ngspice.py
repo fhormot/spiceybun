@@ -6,6 +6,12 @@ from pathlib import Path
 from spiceybun.ngspice import Ngspice
 
 @pytest.fixture
+def get_file_path():
+    test_dir = Path(__file__).parent
+
+    return test_dir
+
+@pytest.fixture
 def set_env_var():
     original_pdk = os.environ.get("PDK")
     original_pdk_root = os.environ.get("PDK_ROOT")
@@ -116,9 +122,9 @@ def ngspice_no_variables_lib(set_env_var):
 
     ngspice.add_spiceinit(os.environ.get("SPICEINIT"))
     path_library = "cornerMOSlv.lib" 
-    ngspice.add_library(path_library, section='mos_tt')
+    ngspice.add_library(path_library, section='mos_tt_stat')
 
-    ngspice.add_transient(2e-3, t_step=1e-10, t_max=1e-7)
+    ngspice.add_transient(2e-3, t_step=1e-9, t_max=1e-6)
 
     ngspice.save_signal('V(v_out)')
     ngspice.save_signal('V(v_in)')
@@ -183,12 +189,20 @@ def test_run_single_no_variables(ngspice_no_variables):
     output = ngspice_no_variables.run()
     assert output != ''
 
-def test_run_single_variables(ngspice):
+def test_run_single_variables(ngspice, get_file_path):
+    path_output = get_file_path / "outputs" / "output_single_variables"
+
+    ngspice.set_output_path(path_output)
+
     output = ngspice.run()
     assert output != ''
 
-def test_run_mc(ngspice):
-    output = ngspice.run(mc=True, mc_runs=2)
+def test_run_mc(ngspice_no_variables_lib, get_file_path):
+    path_output = get_file_path / "outputs" / "output_subckt_lib_no_variables_mc"
+
+    ngspice_no_variables_lib.set_output_path(path_output)
+
+    output = ngspice_no_variables_lib.run(mc=True, mc_runs=20)
     assert output != ''
 
 def test_run_sweep(ngspice):
@@ -201,6 +215,10 @@ def test_run_sweep(ngspice):
     for output_single in output:
         assert output_single != ''
 
-def test_run_no_variables_lib(ngspice_no_variables_lib):
+def test_run_no_variables_lib(ngspice_no_variables_lib, get_file_path):
+    path_output = get_file_path / "outputs" / "output_subckt_lib_no_variables_mc"
+
+    ngspice_no_variables_lib.set_output_path(path_output)
+
     output = ngspice_no_variables_lib.run()
     assert output != ''

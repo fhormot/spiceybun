@@ -26,6 +26,8 @@ TBD
 - [ ] Enabling basic functionality:
     - [ ] All analysis statements
     - [ ] Libraries
+        - [x] Library inclusion
+        - [ ] Library sweep
     - [ ] Variables
         - [x] Simple variables
         - [ ] Equations

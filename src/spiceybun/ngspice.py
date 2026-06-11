@@ -12,6 +12,7 @@ class Ngspice:
         def __init__(self, path_netlist, **kwargs):
                 self._netlist           = []
 
+                # Netlist sections
                 self._analysis          = []
                 self._variables         = []
                 self._libraries         = []
@@ -21,10 +22,12 @@ class Ngspice:
                 # Control statements
                 self._plot_all          = False
 
+                # Paths
                 self._path_netlist      = path_netlist
 
                 self._output_path       = Path(__file__).parent
 
+                # Measurement control
                 self.measure            = Measure_ngspice()
 
                 # Preparation during init
@@ -57,7 +60,6 @@ class Ngspice:
                 self._read_dut_variables()
 
         def _include(self, path, **kwargs) -> str:
-                # str = f'.include "{path}"'
                 str = f'.include {path}'
 
                 if 'section' in kwargs:
@@ -224,7 +226,7 @@ class Ngspice:
         def _netlist_define_measurement_setup(self) -> list:
                 control_statement = []
 
-                measurements = self.measure.get_all()
+                measurements = self.measure.get_measurements()
                 if len(measurements)>0:
                         control_statement.append('\t*Prepare measurement output file with a header')
                         measurement_list = ' '.join([measure['name'] for measure in measurements])
@@ -237,7 +239,7 @@ class Ngspice:
 
                 control_statement.append('\n\t\t* Measurements')
 
-                measurements = self.measure.get_all()
+                measurements = self.measure.get_measurements()
                 for measure in measurements:
                         control_statement.append(f'\t\t{measure["measure"]}')
 

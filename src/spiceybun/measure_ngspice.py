@@ -4,8 +4,17 @@ class Measure_ngspice():
         def __init__(self):
                 self._measure = []
 
-        def get_all(self) -> list:
+                self._results = pd.DataFrame()
+
+# Internal methods
+
+# Public methods
+
+        def get_measurements(self) -> list:
                 return self._measure
+        
+        def get_results(self) -> object:
+                return self._results
         
         def explicit(self, measure) -> str:
                 arguments = measure.split()
@@ -19,20 +28,6 @@ class Measure_ngspice():
                 return measure
         
         def process_measure(self, path) -> object:
-                with open(path, 'r') as f:
-                        header = f.readline().strip().split()
-                        values = f.readline().strip().split()
+                self._results = pd.read_csv(path, delimiter=' ', header=0)
 
-                # df = pd.read_csv(
-                #     path,    
-                #     delimiter=' ',
-                #     nrows=1,
-                #     skipinitialspace=True 
-                # )
-
-                # Extract header and first row
-                output = pd.DataFrame([values], columns=header)
-
-                output.to_csv(path, index=False, header=True)
-
-                return output
+                return self.get_results()
