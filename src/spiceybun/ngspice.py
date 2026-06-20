@@ -256,7 +256,7 @@ class Ngspice:
 
                 return control_statement
 
-        def _run_single_run(self, **kwargs) -> str:
+        def _run_single_run(self, **kwargs) -> dict:
                 subfolder = kwargs.get('id', '')
 
                 output_path = os.path.join(self._output_path, subfolder)
@@ -291,9 +291,15 @@ class Ngspice:
                         f.write(output.stdout)
                 os.chmod(command_path, 0o755)
 
-                # self.measure.process_measure(os.path.join(self._output_path, 'measurement.raw'))
+                return_dict = {
+                        'stdout': output.stdout,
+                        'stderr': output.stderr,
+                        'returncode': output.returncode,
+                        'result_path': os.path.join(output_path, 'output.raw'),
+                        'measurement_path': os.path.join(output_path, 'results', 'measurements.raw')
+                        }
 
-                return output.stdout
+                return return_dict
 
         def _run_sweep(self, sweep_list, **kwargs) -> list:
                 results = []

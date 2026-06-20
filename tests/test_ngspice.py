@@ -187,7 +187,11 @@ def test_write_netlist(ngspice_basic):
 
 def test_run_single_no_variables(ngspice_no_variables):
     output = ngspice_no_variables.run()
-    assert output != ''
+
+    assert output != {}
+    assert output['returncode'] == 0
+    assert output['stdout'] != ''
+    assert output['stderr'] == ''
 
 def test_run_single_variables(ngspice, get_file_path):
     path_output = get_file_path / "outputs" / "output_single_variables"
@@ -195,7 +199,11 @@ def test_run_single_variables(ngspice, get_file_path):
     ngspice.set_output_path(path_output)
 
     output = ngspice.run()
-    assert output != ''
+
+    assert output != {}
+    assert output['returncode'] == 0
+    assert output['stdout'] != ''
+    assert output['stderr'] == ''
 
 def test_run_mc(ngspice_no_variables_lib, get_file_path):
     path_output = get_file_path / "outputs" / "output_subckt_lib_no_variables_mc"
@@ -203,7 +211,11 @@ def test_run_mc(ngspice_no_variables_lib, get_file_path):
     ngspice_no_variables_lib.set_output_path(path_output)
 
     output = ngspice_no_variables_lib.run(mc=True, mc_runs=20)
-    assert output != ''
+
+    assert output != {}
+    assert output['returncode'] == 0
+    assert output['stdout'] != ''
+    assert output['stderr'] == ''
 
 def test_run_sweep(ngspice):
     ngspice.set_variable('v_vdd', ['1.35', '1.65'])
@@ -213,7 +225,10 @@ def test_run_sweep(ngspice):
     assert type(output) is list
 
     for output_single in output:
-        assert output_single != ''
+        assert output_single != {}
+        assert output_single['returncode'] == 0
+        assert output_single['stdout'] != ''
+        assert output_single['stderr'] == ''
 
 def test_run_no_variables_lib(ngspice_no_variables_lib, get_file_path):
     path_output = get_file_path / "outputs" / "output_subckt_lib_no_variables_mc"
@@ -221,4 +236,8 @@ def test_run_no_variables_lib(ngspice_no_variables_lib, get_file_path):
     ngspice_no_variables_lib.set_output_path(path_output)
 
     output = ngspice_no_variables_lib.run()
-    assert output != ''
+
+    assert output != {}
+    assert output['returncode'] == 0
+    assert output['stdout'] != ''
+    assert output['stderr'] == ''
