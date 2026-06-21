@@ -30,3 +30,6 @@ pythonpath = ["."]
 [project.urls]
 Homepage = "https://github.com/fhormot/spiceybun"
 Issues = "https://github.com/fhormot/spiceybun/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

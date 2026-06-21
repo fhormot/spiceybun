@@ -27,3 +27,6 @@ htmlcov
 !/ng-libs/**/*.lib
 !/ng-libs/**/*.osdi
 !/ng-libs/**/.spiceinit
+
+# Exampllle folder output files
+/examples/*/outputs
