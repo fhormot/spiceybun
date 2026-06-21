@@ -30,6 +30,9 @@ class Ngspice:
                 # Measurement control
                 self.measure            = Measure_ngspice()
 
+                # Outputs
+                self._results            = {}
+
                 # Preparation during init
                 self._read_dut_nelist()
 
@@ -48,7 +51,9 @@ class Ngspice:
 
                 for variable in variables:
                         name = variable.strip('{}')
-                        self._variables.append(Variable(name))
+
+                        if not any(v.get_name() == name for v in self._variables):
+                                self._variables.append(Variable(name))
 
         def _read_dut_nelist(self) -> None:
                 with open(self._path_netlist, 'r') as f:
@@ -264,10 +269,12 @@ class Ngspice:
                 # Verify the output folder exists
                 if not os.path.exists(output_path):
                         os.makedirs(output_path)
+                        os.chmod(output_path, 0o755)
 
                 # Verify that the results folder is available
                 if not os.path.exists(os.path.join(output_path, "results")):
                         os.makedirs(os.path.join(output_path, "results"))
+                        os.chmod(os.path.join(output_path, "results"), 0o755)
 
                 path_input_netlist = self._write_netlist_dut(**kwargs)
                 self._write_spiceinit(**kwargs)
@@ -301,19 +308,39 @@ class Ngspice:
 
                 return return_dict
 
-        def _run_sweep(self, sweep_list, **kwargs) -> list:
+        def _run_sweep(self, sweep_list, **kwargs) -> dict:
                 results = []
 
                 for idx, run in enumerate(sweep_list):
                         self._netlist = []
                         results.append(self._run_single_run(variables=run, id=f'{idx}', **kwargs))
 
-                return results
+                return { key: [d[key] for d in results] for key in results[0].keys()}
 
 # Public methods
 
         def get_variables(self) -> list:
                 return self._variables
+
+        def get_sim_output(self) -> dict:
+                return self._results
+
+        def get_measurements(self) -> list:
+                locations = self.get_sim_output()
+
+                if 'measurement_path' not in locations:
+                        return []
+
+                results = []
+
+                locations = locations['measurement_path']
+                locations = [locations] if type(locations) is not list else locations
+
+                for location in locations:
+                        if os.path.exists(location):
+                                results.append(self.measure.process_measure(location))
+
+                return results
 
         def set_variable(self, name, value) -> Variable | None:
                 for variable in self._variables:
@@ -371,17 +398,20 @@ class Ngspice:
         def set_output_path(self, path) -> None:
                 self._output_path = path
 
-        def run(self, **kwargs) -> str | list:
+        def run(self, **kwargs) -> dict:
                 total_variations = self._libraries + self._variables
 
                 if len(total_variations) == 0:
-                        return self._run_single_run(**kwargs)
+                        self._results = self._run_single_run(**kwargs)
+                        return self.get_sim_output()
                 
                 #Create all variation combinations
                 permutation_pre_list = [variable.get_split() for variable in total_variations]
                 permutations = list(product(*permutation_pre_list))
 
                 if len(permutations) == 1:
-                        return self._run_single_run(**kwargs)
+                        self._results = self._run_single_run(**kwargs)
+                else:
+                        self._results =  self._run_sweep(permutations, **kwargs)
 
-                return self._run_sweep(permutations, **kwargs)
+                return self.get_sim_output()

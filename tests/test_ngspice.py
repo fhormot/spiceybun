@@ -156,6 +156,16 @@ def test_read_dut_netlist(ngspice_basic):
 
     assert len(variables) == 3
 
+def test_get_sim_output_before_run(ngspice_basic):
+    results = ngspice_basic.get_sim_output()
+
+    assert results == {}
+
+def test_get_measurements_before_run(ngspice_basic):
+    results = ngspice_basic.get_measurements()
+
+    assert results == []
+
 def test_set_output_path(ngspice_basic):
     path_new = Path(__file__).parent
 
@@ -171,6 +181,16 @@ def test_write_netlist(ngspice_basic):
     t_stop =' 500e-9'
     t_start = '0'
     t_max = '100e-12'
+
+    path = Path(__file__).parent
+    path_output = path / "outputs" / "output_flat_variables"
+
+    ngspice_basic.set_output_path(path_output)
+
+    # Verify the output folder exists
+    # Run command is supposed to verify the output folder
+    if not os.path.exists(path_output):
+            os.makedirs(path_output)
 
     statement = ngspice_basic.add_transient(t_stop, t_step=t_step)
     assert len(ngspice_basic._analysis) == 1
@@ -192,6 +212,14 @@ def test_run_single_no_variables(ngspice_no_variables):
     assert output['returncode'] == 0
     assert output['stdout'] != ''
     assert output['stderr'] == ''
+
+    measurements = ngspice_no_variables.get_measurements()
+
+    assert measurements != []
+    assert len(measurements) == 1
+
+    measurement =  measurements[0]
+    assert list(measurement.columns.values) == ['t_delay_l2h', 't_delay_h2l', 't_fail']
 
 def test_run_single_variables(ngspice, get_file_path):
     path_output = get_file_path / "outputs" / "output_single_variables"
@@ -222,13 +250,12 @@ def test_run_sweep(ngspice):
 
     output = ngspice.run()
 
-    assert type(output) is list
+    assert type(output) is dict
 
-    for output_single in output:
-        assert output_single != {}
-        assert output_single['returncode'] == 0
-        assert output_single['stdout'] != ''
-        assert output_single['stderr'] == ''
+    assert output != {}
+    assert output['returncode'] == [0, 0]
+    assert output['stdout'] != ['', '']
+    assert output['stderr'] == ['', '']
 
 def test_run_no_variables_lib(ngspice_no_variables_lib, get_file_path):
     path_output = get_file_path / "outputs" / "output_subckt_lib_no_variables_mc"
