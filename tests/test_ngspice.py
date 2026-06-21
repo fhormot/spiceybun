@@ -238,14 +238,26 @@ def test_run_mc(ngspice_no_variables_lib, get_file_path):
 
     ngspice_no_variables_lib.set_output_path(path_output)
 
-    output = ngspice_no_variables_lib.run(mc=True, mc_runs=20)
+    mc_runs = 20
+    output = ngspice_no_variables_lib.run(mc=True, mc_runs=mc_runs)
 
     assert output != {}
     assert output['returncode'] == 0
     assert output['stdout'] != ''
     assert output['stderr'] == ''
 
-def test_run_sweep(ngspice):
+    measurements = ngspice_no_variables_lib.get_measurements()
+    assert measurements != []
+    assert len(measurements) == 1
+
+    measurement =  measurements[0]
+    assert list(measurement.columns.values) == ['v_th_l2h', 'v_th_h2l']
+    assert len(measurement) == mc_runs
+
+def test_run_sweep(ngspice, get_file_path):
+    path_output = get_file_path / "outputs" / "output_subckt_lib_no_variables_sweep"
+
+    ngspice.set_output_path(path_output)
     ngspice.set_variable('v_vdd', ['1.35', '1.65'])
 
     output = ngspice.run()
@@ -256,6 +268,10 @@ def test_run_sweep(ngspice):
     assert output['returncode'] == [0, 0]
     assert output['stdout'] != ['', '']
     assert output['stderr'] == ['', '']
+
+    measurements = ngspice.get_measurements()
+    assert measurements != []
+    assert len(measurements) == 2
 
 def test_run_no_variables_lib(ngspice_no_variables_lib, get_file_path):
     path_output = get_file_path / "outputs" / "output_subckt_lib_no_variables_mc"

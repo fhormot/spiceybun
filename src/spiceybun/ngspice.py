@@ -153,7 +153,7 @@ class Ngspice:
                 mc = kwargs.get('mc', False)
 
                 control_statement = []
-                control_statement.append('\n* Control statements added by the tool')
+                control_statement.append('\n* Control statements added by spicybun')
 
                 # Parameter definitions
                 variables = kwargs.get('variables', self._libraries + self._variables)
@@ -169,7 +169,7 @@ class Ngspice:
 
                 # Section
                 # Measurement file preparation
-                control_statement.extend(self._netlist_define_measurement_setup())
+                control_statement.extend(self._netlist_define_measurement_setup(**kwargs))
 
                 # Section Monte Carlo
                 if mc:
@@ -193,7 +193,7 @@ class Ngspice:
                 control_statement.extend(self._netlist_define_plot(**kwargs))
 
                 # Measureement definition and write to file
-                control_statement.extend(self._netlist_define_measurement_write())
+                control_statement.extend(self._netlist_define_measurement_write(**kwargs))
 
                 if mc:
                         control_statement.append('\n\t\tlet mc_index = mc_index + 1')
@@ -228,19 +228,26 @@ class Ngspice:
 
                 return control_statement
 
-        def _netlist_define_measurement_setup(self) -> list:
+        def _netlist_define_measurement_setup(self, **kwargs) -> list:
                 control_statement = []
+
+                subfolder = kwargs.get('id', '')
+                output_path = os.path.join(self._output_path, subfolder, 'results', 'measurements.raw')
+
 
                 measurements = self.measure.get_measurements()
                 if len(measurements)>0:
                         control_statement.append('\t*Prepare measurement output file with a header')
                         measurement_list = ' '.join([measure['name'] for measure in measurements])
-                        control_statement.append(f'\techo "{measurement_list}" > {os.path.join(self._output_path, "results", "measurements.raw\n")}')
+                        control_statement.append(f'\techo "{measurement_list}" > {output_path}')
 
                 return control_statement
 
-        def _netlist_define_measurement_write(self) -> list:
+        def _netlist_define_measurement_write(self, **kwargs) -> list:
                 control_statement = []
+
+                subfolder = kwargs.get('id', '')
+                output_path = os.path.join(self._output_path, subfolder, 'results', 'measurements.raw')
 
                 control_statement.append('\n\t\t* Measurements')
 
@@ -257,7 +264,7 @@ class Ngspice:
 
                         control_statement.append('\n\t\t* Measurement output in separate files')
                         measurement_list = ' '.join([f'$&{measure['name']}' for measure in measurements])
-                        control_statement.append(f'\t\techo "{measurement_list}" >> {os.path.join(self._output_path, "results", "measurements.raw")}')
+                        control_statement.append(f'\t\techo "{measurement_list}" >> {output_path}')
 
                 return control_statement
 
@@ -335,6 +342,7 @@ class Ngspice:
 
                 locations = locations['measurement_path']
                 locations = [locations] if type(locations) is not list else locations
+                print(locations)
 
                 for location in locations:
                         if os.path.exists(location):
